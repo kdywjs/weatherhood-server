@@ -1,0 +1,35 @@
+name: 설계
+description: 설계 작업을 등록합니다.
+labels:
+- 설계
+body:
+- type: textarea
+  id: purpose
+  attributes:
+    label: 설계 목적
+  validations:
+    required: true
+- type: textarea
+  id: details
+  attributes:
+    label: 결정할 사항
+  validations:
+    required: true
+- type: textarea
+  id: references
+  attributes:
+    label: 관련 스펙·자료
+  validations:
+    required: false
+- type: textarea
+  id: constraints
+  attributes:
+    label: 제약
+  validations:
+    required: false
+- type: textarea
+  id: out-of-scope
+  attributes:
+    label: 제외 범위
+  validations:
+    required: false
