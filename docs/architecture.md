@@ -2,7 +2,7 @@
 
 ## 범위와 상태
 
-서버 기술 선택의 원본이다. 기능 요구사항과 API 계약은 [공통 스펙](../../weatherhood-specs/README.md)을 따른다. 서버 구현은 초기화되었으며 아래 내용은 합의된 설계다. 기본 프로젝트·DB 연결·테스트 환경을 구성했다. 실행 방법과 검증 범위는 [서버 README](../README.md)를 따른다. 업무 기능은 구현하지 않았다.
+서버 기술 선택의 원본이다. 기능 요구사항과 API 계약은 [공통 스펙](../../weatherhood-specs/README.md)을 따른다. 서버 구현은 초기화되었으며 아래 내용은 합의된 설계다. 기본 프로젝트·DB 연결·테스트 환경을 구성했다. 실행 방법과 검증 범위는 [서버 README](../README.md)를 따른다. 오늘 날씨 기능은 구현 중이며 공통 응답·예외 처리와 역할별 패키지를 적용했다. 기능 전체 완료와 운영 검증을 의미하지 않는다.
 
 ## 기술 선택
 
@@ -22,14 +22,39 @@ PostGIS·TimescaleDB는 도입하지 않는다. 공간 검색·대규모 시계�
 
 ## 코드 구조와 책임
 
-기능별 패키지 안에 Controller·Service·Repository·DTO 등 역할을 구분한다. 초기 복잡도를 낮추면서 핵심 로직의 독립성과 테스트 가능성을 확보하기 위한 선택이다.
+기능별 패키지 안에 일반적인 Controller·Service·Repository·Entity·DTO 구조를 사용한다. Port·Adapter나 별도 policy 계층을 만들지 않는다.
 
-- Controller는 HTTP 요청·응답을 처리하고 Service는 기능의 흐름을 조율한다. Repository는 데이터 접근을 담당한다.
-- 모든 Service에 인터페이스를 만들지 않는다. 외부 날씨 공급처처럼 분리가 필요한 경계에 인터페이스를 사용한다.
-- 외부 연동 인터페이스는 우리 서비스의 타입을 사용한다. 공급처 응답과 앱에 반환하는 DTO를 구분한다.
-- 예보 선택·유효성 판단 같은 핵심 규칙은 별도 객체로 분리해 외부 HTTP·DB 없이 테스트한다.
-- 헥사고날 전체 구조를 도입하지 않는다. 실제 변경·테스트에서 확인한 문제를 근거로 구조를 개선한다.
-- 세부 테이블·관계·인덱스는 기능·API 설계 이후 정한다. 빈 패키지나 업무 테이블을 미리 만들지 않는다.
+```text
+src/main/java/com/weatherhood/
+├── WeatherhoodServerApplication.java
+├── common/
+│   ├── config/       # 공통 Bean 설정
+│   ├── exception/    # ErrorCode, ApplicationException, GlobalExceptionHandler
+│   └── response/     # ApiResponse<T>
+└── today/
+    ├── controller/   # HTTP 입력 검증, 상태·헤더, 응답 DTO 변환
+    ├── dto/          # 요청·응답 및 서비스/외부 연동 데이터 전달 타입
+    ├── service/      # 업무 흐름, 수집, 응답 조합, 갱신 판단
+    ├── entity/       # JPA 영속성 엔티티
+    ├── repository/   # Spring Data JPA 및 저장·조회 구현
+    └── client/       # 외부 API 호출·공급 응답 정규화
+```
+
+- 기본 흐름은 Controller → Service → Repository 또는 외부 API Client다. Repository와 Client는 Controller나 Service를 참조하지 않는다.
+- 컨트롤러용 요청·응답 DTO는 각각 `Request`·`Response` 접미사를 사용한다. 내부 처리용 타입에는 이 규칙을 적용하지 않는다.
+- Controller는 Entity를 직접 반환하지 않는다. 응답 전용 DTO를 `ResponseEntity<ApiResponse<T>>`로 반환한다. Service는 `ResponseEntity`와 HTTP 상태를 알지 않는다.
+- Service는 필요한 책임별 클래스로 나눈다. 날짜·유효성·우선순위 판단은 Spring·DB 없이 검증 가능한 클래스로 유지하되 별도 policy 패키지를 두지 않는다.
+- Entity는 DB 매핑이며 DTO와 분리한다. 모든 Service에 인터페이스를 만들지 않는다. 외부 호출 경계의 인터페이스는 테스트 대체가 필요한 경우에만 사용한다.
+- 공통 기능은 실제 여러 기능에 적용할 응답·예외·설정만 둔다. 기능별 규칙을 common으로 옮기지 않는다.
+- `src/main/resources/db/migration`은 Flyway DDL, `src/test/java`는 자동 테스트, `scripts/`는 데이터 준비 도구, `docs/`는 공통 구조·운영 문서다. 비밀값은 Git에서 제외한 `.env` 또는 실행 환경변수로 제공한다.
+
+## 공통 응답과 예외 처리
+
+- 성공은 `ApiResponse.success(dto)`, 실패는 공통 처리기의 `ApiResponse.failure(...)`로 생성한다. JSON은 성공 시 `data`와 `error: null`, 실패 시 `data: null`과 `error`를 갖는다. JSON 계약 원본은 [오늘 날씨 계약](../../weatherhood-specs/contracts/today-weather-api.md)이다.
+- `ErrorCode`는 안정적인 외부 코드 문자열과 공개 메시지를 갖는다. enum 이름과 응답 코드는 분리하며 `name()`을 응답 코드로 사용하지 않는다.
+- 예상 가능한 업무 실패는 `ApplicationException`으로 전달한다. HTTP 상태·Retry-After 헤더 매핑은 `GlobalExceptionHandler`가 담당한다. 공급처 실패는 Client에서 `WeatherProviderException`으로 변환하고 Service가 부분 응답 여부를 판단한다. 비동기 수집의 내부 실패는 `WeatherCollectionException`으로 전달하며 자료 부족으로 숨기지 않는다. 숫자·날짜·통신·JSON 파싱은 구체적인 예외만 처리하고, 예상하지 못한 예외의 최종 500 처리는 공통 처리기에 둔다.
+- 요청 검증 실패는 400, 존재하지 않는 경로는 404, 지원하지 않는 메서드는 405로 처리한다. 업무 오류는 계약의 상태를 유지하며 예기치 못한 실패만 500이다. 실패를 HTTP 200으로 감싸지 않는다.
+- 예외 메시지·원본 공급 응답·인증키·정확한 GPS·쿼리 문자열을 오류 응답이나 일반 로그에 기록하지 않는다. 예상하지 못한 오류 로그는 예외 타입을 남긴다. 추적 ID·관측 도구 도입은 별도 설계한다.
 
 ## 테스트 데이터와 환경
 
