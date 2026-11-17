@@ -1,0 +1,143 @@
+name: Server CI and dev deployment
+on:
+  pull_request:
+    branches: [dev]
+  push:
+    branches: [dev]
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Previously successful full commit SHA (blank builds current dev)
+        required: false
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: weatherhood-${{ github.event_name == 'pull_request' && github.event.pull_request.number || 'dev-deploy' }}
+  cancel-in-progress: false
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - run: ./gradlew test bootJar javadoc --no-daemon
+      - run: python3 -B -m unittest discover -s deploy -p 'test_*.py'
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-results
+          path: build/reports/tests/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: server-jar
+          path: build/libs/weatherhood-server-0.0.1-SNAPSHOT.jar
+          retention-days: 1
+  publish:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/dev'
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.image.outputs.digest }}
+      revision: ${{ steps.image.outputs.revision }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v4
+        with:
+          name: server-jar
+          path: build/libs
+      - name: Publish or resolve immutable image
+        id: image
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+          REQUESTED_REVISION: ${{ inputs.revision }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+          image=ghcr.io/kdywjs/weatherhood-server
+          revision="${REQUESTED_REVISION:-$GITHUB_SHA}"
+          [[ "$revision" =~ ^[a-f0-9]{40}$ ]]
+          if [ -z "$REQUESTED_REVISION" ]; then
+            docker build --platform linux/amd64 \
+              --label "org.opencontainers.image.source=https://github.com/kdywjs/weatherhood-server" \
+              --label "org.opencontainers.image.revision=$revision" -t "$image:$revision" .
+            docker push "$image:$revision"
+          fi
+          docker pull "$image:$revision"
+          ref=$(docker image inspect --format '{{index .RepoDigests 0}}' "$image:$revision")
+          echo "digest=${ref#*@}" >> "$GITHUB_OUTPUT"
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+          docker logout ghcr.io
+  deploy:
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: dev
+    outputs:
+      retained: ${{ steps.ssh.outputs.retained }}
+      retired: ${{ steps.ssh.outputs.retired }}
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Deploy through restricted SSH command
+        id: ssh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SSH_KEY: ${{ secrets.DEV_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.DEV_SSH_KNOWN_HOSTS }}
+          SSH_HOST: ${{ vars.DEV_SSH_HOST }}
+          SSH_PORT: ${{ vars.DEV_SSH_PORT }}
+          SSH_USER: weatherhood-deploy
+          DIGEST: ${{ needs.publish.outputs.digest }}
+          REVISION: ${{ needs.publish.outputs.revision }}
+          ACTOR: ${{ github.actor }}
+          MANUAL_REVISION: ${{ inputs.revision }}
+        run: |
+          set -euo pipefail
+          if [ -z "$MANUAL_REVISION" ]; then
+            head=$(gh api repos/kdywjs/weatherhood-server/git/ref/heads/dev --jq .object.sha)
+            if [ "$head" != "$REVISION" ]; then
+              echo 'Skipped superseded dev revision' >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+          fi
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/weatherhood
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          trap 'rm -f ~/.ssh/weatherhood' EXIT
+          python3 - <<'PY' | ssh -T -i ~/.ssh/weatherhood -p "$SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" | tee /tmp/deployment-result
+          import json, os
+          print(json.dumps({"digest": os.environ["DIGEST"], "revision": os.environ["REVISION"],
+                            "actor": os.environ["ACTOR"], "token": os.environ["GH_TOKEN"],
+                            "mode": "manual" if os.environ["MANUAL_REVISION"] else "auto"}))
+          PY
+          echo "retained=$(tail -1 /tmp/deployment-result | jq -c .retained)" >> "$GITHUB_OUTPUT"
+          echo "retired=$(tail -1 /tmp/deployment-result | jq -c .retired)" >> "$GITHUB_OUTPUT"
+          curl --fail --silent --show-error --max-time 15 https://weatherhood-dev-api.ansandy.co.kr/healthz
+          echo "Deployed $REVISION ($DIGEST); external HTTPS health passed." >> "$GITHUB_STEP_SUMMARY"
+  cleanup:
+    needs: deploy
+    if: needs.deploy.outputs.retained != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Retain successful images and remove old unused images
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RETAINED_IMAGES: ${{ needs.deploy.outputs.retained }}
+          RETIRED_IMAGES: ${{ needs.deploy.outputs.retired }}
+        run: python3 deploy/cleanup_images.py
