@@ -72,7 +72,7 @@ API 주소는 `https://weatherhood-dev-api.ansandy.co.kr`, 문서 주소는 `htt
 - 기상청·에어코리아·한국천문연구원 등 외부 공급처의 응답 성공은 서버 준비 상태의 필수 조건에 포함하지 않는다. 공급처 일시 장애만으로 정상 서버를 반복 배포·롤백하지 않는다.
 - 도메인 연결 후 외부 HTTPS 접속도 추가 확인한다. 내부 서버는 정상인데 외부 접근만 실패하면 프록시·TLS·DNS·외부 연결 문제로 구분해 기록하고, 그 이유만으로 서버 이미지를 자동 롤백하지 않는다. 외부 접속 확인 전에는 외부 제공까지 정상이라고 표시하지 않는다.
 - Spring Boot Actuator의 `/actuator/health/readiness`를 내부에서 사용하고 readinessState와 DB 검사를 명시적으로 포함한다. 개별 내부 점검 타임아웃은 3초이며 전체 2분 대기 예산을 넘기지 않는다. 기존 프로젝트에 Actuator 연동을 추가해야 한다.
-- 외부 HTTPS 점검은 내부 상세 정보를 노출하지 않는 최소 상태 응답으로 수행하고 실제 날씨 조회 검증과 분리한다. 해당 외부 경로와 응답 계약은 구현 전 확정한다.
+- 외부 HTTPS 점검은 `/healthz`의 최소 상태 응답으로 수행하고 실제 날씨 조회 검증과 분리한다.
 
 ### 외부 상태 확인
 
@@ -108,6 +108,10 @@ API 주소는 `https://weatherhood-dev-api.ansandy.co.kr`, 문서 주소는 `htt
 - 로그는 Docker local 드라이버로 파일당 10MB·컨테이너당 3개 순환 보관한다. 비밀값·인증 URL은 기록하지 않는다. 실패 알림은 GitHub Actions 알림·실행 요약으로 제공하고 실제 수신을 검증한다.
 
 ## DB와 실패 복구
+
+런타임 설정은 서버의 `/opt/weatherhood-dev/.env`에서 읽는다. root 소유·600 권한으로 API 키와 테스트 DB 비밀번호를 보관하며, 일반 배포가 이 파일을 교체하지 않는다. 변수 목록은 [runtime.env.example](../deploy/runtime.env.example)에 둔다. Docker 이미지에는 비밀값을 넣지 않는다.
+
+GitHub `dev` 환경에는 `DEV_SSH_KEY`, `DEV_SSH_KNOWN_HOSTS`를 Secrets로, `DEV_SSH_HOST`, `DEV_SSH_PORT`를 Variables로 둔다. 호스트 키는 비밀이 아니지만 무결성을 유지해야 하므로 배포 설정으로 고정한다. 공통 설정은 [배포 Compose](../deploy/compose.yaml)에서 관리한다. 서버의 Compose·배포 스크립트는 root 소유이며 Actions가 임의로 덮어쓰지 못한다. 배포 기반 변경 시 관리 SSH로 검증된 파일을 별도 설치한다.
 
 - PostgreSQL 데이터는 전용 영구 볼륨에 저장한다. 서버 컨테이너 교체나 배포 임시 디렉터리 정리가 DB 삭제로 이어지지 않아야 한다.
 - Flyway 마이그레이션과 JPA 검증을 통과해야 신규 서버를 정상 배포로 처리한다. 실패 시 배포를 중단하고 원인을 확인한다.

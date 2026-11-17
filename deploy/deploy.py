@@ -131,7 +131,9 @@ def deploy(request):
                     print('Retired local image cleanup deferred', flush=True)
         print(json.dumps({'status': 'deployed', 'revision': revision, 'image': image,
                           'durationSeconds': current['durationSeconds'],
-                          'retained': [item['image'] for item in retained]}), flush=True)
+                          'retained': [item['image'] for item in retained],
+                          'retired': [item['image'] for item in history
+                                      if item['image'] not in {kept['image'] for kept in retained}]}), flush=True)
 
 
 def main():

@@ -82,11 +82,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: dev
+    outputs:
+      retained: ${{ steps.ssh.outputs.retained }}
+      retired: ${{ steps.ssh.outputs.retired }}
     permissions:
       contents: read
       packages: read
     steps:
       - name: Deploy through restricted SSH command
+        id: ssh
         env:
           GH_TOKEN: ${{ github.token }}
           SSH_KEY: ${{ secrets.DEV_SSH_KEY }}
@@ -112,11 +116,28 @@ jobs:
           printf '%s\n' "$SSH_KEY" > ~/.ssh/weatherhood
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           trap 'rm -f ~/.ssh/weatherhood' EXIT
-          python3 - <<'PY' | ssh -T -i ~/.ssh/weatherhood -p "$SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST"
+          python3 - <<'PY' | ssh -T -i ~/.ssh/weatherhood -p "$SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" | tee /tmp/deployment-result
           import json, os
           print(json.dumps({"digest": os.environ["DIGEST"], "revision": os.environ["REVISION"],
                             "actor": os.environ["ACTOR"], "token": os.environ["GH_TOKEN"],
                             "mode": "manual" if os.environ["MANUAL_REVISION"] else "auto"}))
           PY
+          echo "retained=$(tail -1 /tmp/deployment-result | jq -c .retained)" >> "$GITHUB_OUTPUT"
+          echo "retired=$(tail -1 /tmp/deployment-result | jq -c .retired)" >> "$GITHUB_OUTPUT"
           curl --fail --silent --show-error --max-time 15 https://weatherhood-dev-api.ansandy.co.kr/healthz
           echo "Deployed $REVISION ($DIGEST); external HTTPS health passed." >> "$GITHUB_STEP_SUMMARY"
+  cleanup:
+    needs: deploy
+    if: needs.deploy.outputs.retained != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Retain successful images and remove old unused images
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RETAINED_IMAGES: ${{ needs.deploy.outputs.retained }}
+          RETIRED_IMAGES: ${{ needs.deploy.outputs.retired }}
+        run: python3 deploy/cleanup_images.py
