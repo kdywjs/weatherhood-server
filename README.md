@@ -9,6 +9,8 @@
 - Gradle 9.8.2는 Wrapper가 내려받는다.
 - Spring Boot 4.1.2, springdoc 3.2.0, PostgreSQL 18.6을 사용한다. PostgreSQL 이미지는 로컬과 통합 테스트에서 동일하게 고정한다. 운영 버전·배포는 별도 설계한다.
 
+개발 테스트 서버의 미니 PC·GitHub Actions SSH 배포 구성은 [개발 테스트 서버 배포 설계](docs/dev-deployment.md)를 따른다. 도메인 연결과 실제 배포 설정은 후속 작업이다.
+
 ## 로컬 실행
 
 ```sh

@@ -13,6 +13,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.boot.availability.AvailabilityChangeEvent;
+import org.springframework.boot.availability.ReadinessState;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Import;
 
 
@@ -27,6 +30,27 @@ class WeatherhoodServerApplicationTests {
     EntityManagerFactory entityManagerFactory;
     @LocalServerPort
     int port;
+    @Autowired
+    ApplicationContext applicationContext;
+
+    @Test
+    void readinessExposesOnlyStatusAndRejectsTrafficWhenUnavailable() throws Exception {
+        try (var client = HttpClient.newHttpClient()) {
+            var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/healthz"))
+                    .GET().build();
+            var healthy = client.send(request, HttpResponse.BodyHandlers.ofString());
+            assertThat(healthy.statusCode()).isEqualTo(200);
+            assertThat(healthy.body()).isEqualTo("{\"status\":\"UP\"}");
+            try {
+                AvailabilityChangeEvent.publish(applicationContext, ReadinessState.REFUSING_TRAFFIC);
+                var unavailable = client.send(request, HttpResponse.BodyHandlers.ofString());
+                assertThat(unavailable.statusCode()).isEqualTo(503);
+                assertThat(unavailable.body()).doesNotContain("components", "details", "database");
+            } finally {
+                AvailabilityChangeEvent.publish(applicationContext, ReadinessState.ACCEPTING_TRAFFIC);
+            }
+        }
+    }
 
     @Test
     void postgresMigrationsAndWeatherEntitiesInitialize() throws Exception {

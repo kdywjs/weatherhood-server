@@ -1,0 +1,4 @@
+**
+!build/
+!build/libs/
+!build/libs/weatherhood-server-0.0.1-SNAPSHOT.jar

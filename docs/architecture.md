@@ -20,6 +20,10 @@
 
 PostGIS·TimescaleDB는 도입하지 않는다. 공간 검색·대규모 시계열 처리 요구가 생기면 검토한다. Redis·메시지 큐·배치 프레임워크도 현재 선택하지 않았다.
 
+## 개발 테스트 서버 배포
+
+Ubuntu 미니 PC에 Docker Compose로 개발 테스트 서버를 구성하고 GitHub 제공 러너에서 SSH로 배포한다. 외부 HTTPS는 기존 Nginx Proxy Manager로 제공하며 Cloudflare Tunnel은 사용하지 않는다. GitHub Actions·GHCR·SSH 배포 흐름, 환경 분리, 복구 기준과 미정 사항은 [배포 설계](dev-deployment.md)가 원본이다. 실제 운영(production) 환경은 별도 결정하며, 테스트 서버 구축 완료를 의미하지 않는다.
+
 ## 코드 구조와 책임
 
 기능별 패키지 안에 일반적인 Controller·Service·Repository·Entity·DTO 구조를 사용한다. Port·Adapter나 별도 policy 계층을 만들지 않는다.
