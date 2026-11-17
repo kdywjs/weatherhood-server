@@ -11,6 +11,7 @@ import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -81,6 +82,9 @@ public class HttpWeatherProvider implements WeatherProvider {
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new WeatherProviderException(Reason.INTERRUPTED, false, 300);
+        } catch (HttpTimeoutException exception) {
+            // One slow forecast must not suppress unrelated regions or observation requests.
+            throw new WeatherProviderException(Reason.UNAVAILABLE, false, 300);
         } catch (IOException exception) {
             throw new WeatherProviderException(Reason.UNAVAILABLE, true, 300);
         } catch (JacksonException exception) {

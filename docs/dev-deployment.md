@@ -4,7 +4,7 @@
 
 외부 테스터가 앱에서 고정 HTTPS 주소로 접근할 수 있는 개발 테스트 환경을 구성한다. 기존 Ubuntu 미니 PC를 실행 호스트로 사용하고, `dev`에 병합한 서버 버전을 GitHub 제공 러너에서 SSH로 배포한다. 실제 사용자 대상 운영 환경(production)은 이번 범위에 포함하지 않는다.
 
-이 문서는 합의한 구성과 구현 전 결정할 사항을 정리한 배포 설계다. 설정·배포가 완료됐다는 의미가 아니다. 서버 공통 기술 선택은 [서버 설계](architecture.md), 업무 동작과 API 계약은 [스펙 레포](../../weatherhood-specs/README.md)가 원본이다.
+이 문서는 개발 테스트 서버의 배포 기준과 검증 범위를 정리한다. 자동 배포는 구성했으며 실제 검증 결과와 보류 항목은 마지막에 기록한다. 서버 공통 기술 선택은 [서버 설계](architecture.md), 업무 동작과 API 계약은 [스펙 레포](../../weatherhood-specs/README.md)가 원본이다.
 
 ## 합의한 구성
 
@@ -165,6 +165,10 @@ GitHub `dev` 환경에는 `DEV_SSH_KEY`, `DEV_SSH_KNOWN_HOSTS`를 Secrets로, `D
 - 문서 호스트는 인증 없이 접근할 수 없고 올바른 NPM 인증으로 UI·설정·OpenAPI JSON을 열람할 수 있다. API 호스트를 통한 문서 우회 접근은 차단되고 앱 API에 문서 인증창이 표시되지 않는다.
 
 ## 참고 및 검증
+
+- 2026-11-17 PR #13·#14를 dev에 병합하고 GitHub-hosted runner → 비공개 GHCR → 제한된 SSH 명령으로 두 번 자동 배포했다. [배포 실행](https://github.com/kdywjs/weatherhood-server/actions/runs/44043179514)의 테스트·게시·배포·정리가 모두 성공했다. `/healthz` 외부 HTTPS 200, Weatherhood DB 중지 시 503·복구 후 200을 확인했다. 기존 서비스 13개는 유지했다.
+- 전국 행정동 3,565개 적재와 마이그레이션 V1~V4를 확인했다. 서울 표본에서 현재 기온·24개 시간 키·미세먼지·일출·일몰을 확인했다. 부산·제주는 미세먼지·일출·일몰을 확인했으며 기상청 단일 요청 지연 후 다른 지역까지 일시 억제되는 문제의 보완 검증을 진행한다. 전국 부하·전체 지역 공급 검증을 완료한 것은 아니다.
+- GitHub CLI의 project·read:packages 권한 갱신과 Issue #12의 Project 연결을 완료했다. GHCR private 상태를 직접 확인했다. `dev`는 `test` 필수 검사와 기존 PR 보호 규칙을 유지한다. Swagger 인증·문서 프록시와 호스트 재부팅 검증은 사용자 일정에 따라 보류한다.
 
 - 사용자 설명의 서버 경로는 공유기 → phadmin → NPM → Ubuntu 서버이며 SSL 인증서를 공통 사용한다. phadmin의 정확한 구성 요소와 프록시·TLS 처리 위치는 미확인이다. NPM Basic Auth가 잘 동작하지 않았다는 제보가 있으며, 공통 인증서나 해당 경로가 원인이라고 단정하지 않는다. 현재 문제 조사·설정 변경은 수행하지 않고 후속 연결 검증에서 확인한다.
 - 사용자 합의: Ubuntu 미니 PC에 GitHub 제공 러너가 SSH로 배포하고 외부 HTTPS는 기존 NPM으로 제공한다. Cloudflare Tunnel은 사용하지 않으며 도메인 연결 준비는 배포 기반 구현과 병행한다.
