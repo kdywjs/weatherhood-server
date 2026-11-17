@@ -41,6 +41,34 @@ class HttpWeatherProviderExceptionTest {
     }
 
     @Test
+    void singleRequestTimeoutDoesNotBlockOtherRegions() throws Exception {
+        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/", exchange -> {
+            try {
+                Thread.sleep(2200);
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+            } finally {
+                exchange.close();
+            }
+        });
+        server.start();
+        try {
+            String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/";
+            var provider = new HttpWeatherProvider(JsonMapper.builder().build(), "test-key", "test-key", url, url,
+                    new KasiSunTimesClient("test-key", url));
+            assertThatThrownBy(() -> provider.fetchWeatherData(REQUEST))
+                    .isInstanceOfSatisfying(WeatherProviderException.class, exception -> {
+                        assertThat(exception.reason()).isEqualTo(Reason.UNAVAILABLE);
+                        assertThat(exception.isProviderWide()).isFalse();
+                        assertThat(exception.retryAfterSeconds()).isEqualTo(300);
+                    });
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     void kmaRequestUsesEightDigitLocalDateWithoutOffset() throws Exception {
         var query = new AtomicReference<String>();
         var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
