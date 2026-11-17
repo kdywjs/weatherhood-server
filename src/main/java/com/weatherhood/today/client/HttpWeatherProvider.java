@@ -124,7 +124,7 @@ public class HttpWeatherProvider implements WeatherProvider {
             parameters.put("dataType", "JSON");
             parameters.put("numOfRows", "2000");
             parameters.put("pageNo", "1");
-            parameters.put("base_date", request.release().format(DateTimeFormatter.BASIC_ISO_DATE));
+            parameters.put("base_date", request.release().toLocalDate().format(DateTimeFormatter.BASIC_ISO_DATE));
             parameters.put("base_time", request.release().format(DateTimeFormatter.ofPattern("HHmm")));
             String[] grid = request.location().split(",");
             parameters.put("nx", grid[0]);

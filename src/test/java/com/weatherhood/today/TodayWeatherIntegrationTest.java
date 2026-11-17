@@ -202,6 +202,7 @@ class TodayWeatherIntegrationTest {
             assertThat(response.statusCode()).isEqualTo(200);
             var data = json.readTree(response.body()).path("data");
             assertThat(data.path("hourly").path("00:00").path("sky").asString()).isEqualTo("cloudy");
+            assertThat(data.path("hourly").path("00:00").has("empty")).isFalse();
             assertThat(data.path("daily").path("temperatureMinC").asDouble()).isEqualTo(5);
             assertThat(data.path("daily").path("temperatureMaxC").asDouble()).isEqualTo(18);
         }

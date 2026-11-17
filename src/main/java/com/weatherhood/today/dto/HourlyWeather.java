@@ -1,5 +1,6 @@
 package com.weatherhood.today.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 /**
  * 한국 시각의 한 시간 슬롯에 제공하는 날씨 값.
@@ -19,6 +20,7 @@ package com.weatherhood.today.dto;
 public record HourlyWeather(Double temperatureC, String sky, String precipitationType,
                             Precipitation precipitationAmount, Double windSpeedMps, Double humidityPercent,
                             Double precipitationProbabilityPercent, AirQuality airQuality) {
+    @JsonIgnore
     public boolean isEmpty() {
         return temperatureC == null && sky == null && precipitationType == null && precipitationAmount == null
                 && windSpeedMps == null && humidityPercent == null && precipitationProbabilityPercent == null

@@ -10,6 +10,7 @@ import com.weatherhood.today.exception.WeatherProviderException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -37,6 +38,38 @@ class HttpWeatherProviderExceptionTest {
     @Test
     void unauthorizedResponseDoesNotExposeItsBodyOrKey() throws Exception {
         assertProviderFailure(401, "private-provider-body", Reason.AUTHENTICATION);
+    }
+
+    @Test
+    void kmaRequestUsesEightDigitLocalDateWithoutOffset() throws Exception {
+        var query = new AtomicReference<String>();
+        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/", exchange -> {
+            query.set(exchange.getRequestURI().getRawQuery());
+            byte[] body = """
+                    {"response":{"header":{"resultCode":"00"},"body":{"totalCount":1,"items":{"item":[
+                    {"baseDate":"20261117","baseTime":"1600","category":"T1H","obsrValue":"12.3"}
+                    ]}}}}
+                    """.getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length);
+            try (var response = exchange.getResponseBody()) {
+                response.write(body);
+            }
+        });
+        server.start();
+        try {
+            String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/";
+            var provider = new HttpWeatherProvider(JsonMapper.builder().build(), "test-key", "", url, "",
+                    new KasiSunTimesClient("", ""));
+            var request = new WeatherProvider.Request(WeatherSource.OBSERVATION, "60,127",
+                    OffsetDateTime.parse("2026-11-17T16:00:00+09:00"));
+            var result = provider.fetchWeatherData(request);
+            assertThat(query.get()).contains("base_date=20261117&base_time=1600").doesNotContain("%2B0900");
+            assertThat(result.values()).hasSize(1);
+            assertThat(result.values().getFirst().value()).isEqualTo(12.3);
+        } finally {
+            server.stop(0);
+        }
     }
 
     private void assertProviderFailure(int status, String body, Reason expectedReason) throws Exception {
