@@ -132,6 +132,9 @@ GitHub `dev` 환경에는 `DEV_SSH_KEY`, `DEV_SSH_KNOWN_HOSTS`를 Secrets로, `D
 - 외부 개발자에게 Swagger UI와 OpenAPI JSON을 제공하고 NPM의 Basic Auth로 보호한다. 별도의 문서용 로그인 화면·회원가입·사용자 DB를 구현하지 않는다. 스펙 레포는 요구사항·계약의 원본으로 유지하고 Swagger는 배포된 API의 조회·호출 도구로 함께 사용한다.
 - 문서는 `weatherhood-dev-docs.ansandy.co.kr`, 앱 API는 `weatherhood-dev-api.ansandy.co.kr`으로 분리한다. 문서 호스트에는 HTTPS와 NPM 인증을 적용하고 Swagger UI·swagger-config·OpenAPI JSON을 모두 보호한다. API 호스트에서는 Swagger·OpenAPI 경로를 차단하여 인증 우회를 막는다.
 - 개발자에게 문서용 인증 정보를 제공하고 앱의 `/api/*`에는 문서용 Basic Auth를 강제하지 않는다. 인증 정보 발급·폐기는 NPM에서 관리하며 비밀번호를 Git·문서에 기록하지 않는다.
+- `dev` 프로필의 `DevApiDocumentationConfiguration`이 OpenAPI 서버 주소를 HTTPS API 호스트로 고정하고, 문서 출처에서 `/api/**`의 GET만 CORS로 허용한다. 교차 출처 자격 증명은 허용하지 않는다.
+- NPM 접근 목록 `weatherhood-dev-docs`는 사용자 인증과 `allow all` IP 규칙을 모두 만족해야 한다(`Satisfy Any` 끔). `Pass Auth to Host`는 끈다. IP 규칙이 비어 있으면 기본 `deny all`로 인증 전 403이 발생한다.
+- 문서 프록시는 `/swagger-ui/`, `/swagger-ui.html`, `/v3/api-docs`와 하위 설정 경로, `/v3/api-docs.yaml`만 허용하고 나머지는 404로 차단한다.
 - Try it out은 별도 API 호스트를 사용한다. 초기 테스트 환경에는 앱 인증·호출 제한을 적용하지 않는다. 문서 호스트를 허용하는 필요한 CORS 설정을 검증하고 문서용 Basic Auth 자격증명을 앱 API 인증으로 재사용하지 않는다.
 - Actuator 상세와 기타 관리 경로는 계속 외부 차단한다. 최소 외부 상태 응답은 상세 진단 데이터와 분리한다.
 - NPM 인증 동작은 도메인 연결 후 실제로 검증한다. 인증 실패 시 무인증 공개로 대체하지 않고 문서 외부 제공 완료 처리를 보류한다. 현재 알려진 인증 문제의 원인 분석은 해당 단계에서 수행한다.
@@ -140,7 +143,6 @@ GitHub `dev` 환경에는 `DEV_SSH_KEY`, `DEV_SSH_KNOWN_HOSTS`를 Secrets로, `D
 
 | 사항 | 결정 또는 확인 시점 |
 | --- | --- |
-| NPM 문서 라우팅·Basic Auth 설정, TLS·외부 접속 검증 | 외부 연결 단계 |
 | Ubuntu 부팅 복구 검증 일정 | 기존 서비스 영향 확인 후 |
 | 배포 전용 키·고정 명령·Docker 제어 권한·호스트 키 고정의 실제 구성 | SSH 배포 구현 시 |
 | GHCR 패키지 존재·Actions 접근 권한 | 패키지 조회 권한 확보 또는 첫 게시 후 |
@@ -168,7 +170,7 @@ GitHub `dev` 환경에는 `DEV_SSH_KEY`, `DEV_SSH_KNOWN_HOSTS`를 Secrets로, `D
 
 - 2026-11-17 PR #13·#14를 dev에 병합하고 GitHub-hosted runner → 비공개 GHCR → 제한된 SSH 명령으로 두 번 자동 배포했다. [배포 실행](https://github.com/kdywjs/weatherhood-server/actions/runs/44043179514)의 테스트·게시·배포·정리가 모두 성공했다. `/healthz` 외부 HTTPS 200, Weatherhood DB 중지 시 503·복구 후 200을 확인했다. 기존 서비스 13개는 유지했다.
 - 전국 행정동 3,565개 적재와 마이그레이션 V1~V4를 확인했다. 서울 표본에서 현재 기온·24개 시간 키·미세먼지·일출·일몰을 확인했다. 부산·제주는 미세먼지·일출·일몰을 확인했으며 기상청 단일 요청 지연 후 다른 지역까지 일시 억제되는 문제의 보완 검증을 진행한다. 전국 부하·전체 지역 공급 검증을 완료한 것은 아니다.
-- GitHub CLI의 project·read:packages 권한 갱신과 Issue #12의 Project 연결을 완료했다. GHCR private 상태를 직접 확인했다. `dev`는 `test` 필수 검사와 기존 PR 보호 규칙을 유지한다. Swagger 인증·문서 프록시와 호스트 재부팅 검증은 사용자 일정에 따라 보류한다.
+- GitHub CLI의 project·read:packages 권한 갱신과 Issue #12의 Project 연결을 완료했다. GHCR private 상태를 직접 확인했다. `dev`는 `test` 필수 검사와 기존 PR 보호 규칙을 유지한다. 호스트 재부팅 검증은 사용자 일정에 따라 보류한다.
 
 - 사용자 설명의 서버 경로는 공유기 → phadmin → NPM → Ubuntu 서버이며 SSL 인증서를 공통 사용한다. phadmin의 정확한 구성 요소와 프록시·TLS 처리 위치는 미확인이다. NPM Basic Auth가 잘 동작하지 않았다는 제보가 있으며, 공통 인증서나 해당 경로가 원인이라고 단정하지 않는다. 현재 문제 조사·설정 변경은 수행하지 않고 후속 연결 검증에서 확인한다.
 - 사용자 합의: Ubuntu 미니 PC에 GitHub 제공 러너가 SSH로 배포하고 외부 HTTPS는 기존 NPM으로 제공한다. Cloudflare Tunnel은 사용하지 않으며 도메인 연결 준비는 배포 기반 구현과 병행한다.
@@ -181,3 +183,5 @@ GitHub `dev` 환경에는 `DEV_SSH_KEY`, `DEV_SSH_KNOWN_HOSTS`를 Secrets로, `D
 - GHCR 조직 패키지 조회는 현재 CLI 토큰에 read:packages scope가 없어 HTTP 403으로 실패했다. 패키지가 없다고 판단하지 않으며, Actions GITHUB_TOKEN의 접근 가능성을 실제 검증한 것도 아니다. 토큰·레포 설정은 변경하지 않았다.
 - 문서 링크와 합의/미정 구분을 확인했다. Docker 이미지·배포 Compose·Actions·러너·Tunnel 구성과 재부팅·복구 테스트는 수행하지 않았다. DNS·API 프록시 준비와 제한된 외부 경로 검증 결과는 위 증적을 따른다.
 - [Actuator health groups](https://docs.spring.io/spring-boot/reference/actuator/endpoints.html), [Docker local 로그 제한](https://docs.docker.com/engine/logging/drivers/local/), [Cloudflare Access 앱 보호](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/self-hosted-public-app/).
+
+- 2026-11-18: 문서 호스트 NPM 인증 연결 후 무인증·잘못된 비밀번호의 401, 올바른 인증의 UI·JSON·swagger-config 200을 확인했다. API 호스트의 문서 차단은 유지한다. HTTPS API 실행 대상과 CORS 설정은 [Issue #16](https://github.com/kdywjs/weatherhood-server/issues/16)에서 검증한다. 기존 서비스의 인증 설정은 변경하지 않았다.
