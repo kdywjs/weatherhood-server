@@ -10,10 +10,8 @@ import java.util.List;
  * @param defaultLocation 현재 위치 또는 저장 지역으로 설정한 실행 기본값
  */
 public record SavedRegionsResponse(
-       
         @Schema(description = "사용자 지정 순서의 저장 지역")
         List<RegionResponse> items,
-        
         @Schema(description = "다음 실행의 기본 지역") DefaultLocationResponse defaultLocation)
         {
     /**

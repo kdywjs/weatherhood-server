@@ -12,7 +12,6 @@ import java.util.List;
  * @param regionIds 원하는 순서의 전체 저장 지역 ID 목록
  */
 public record RegionOrderRequest(
-        
         @NotNull @Size(max = 10)
         @Schema(description = "원하는 순서의 전체 저장 지역 ID 목록, 중복·누락 불가") List<@NotBlank @Size(max = 128) String> regionIds)
         {

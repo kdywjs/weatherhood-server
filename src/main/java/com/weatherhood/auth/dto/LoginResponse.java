@@ -12,16 +12,12 @@ import java.time.Instant;
  * @param user        로그인한 내부 사용자 식별 정보
  */
 public record LoginResponse(
-       
         @Schema(description = "개인 API의 Bearer 헤더에 사용할 서버 세션 토큰")
         String accessToken,
-        
         @Schema(description = "헤더 인증 방식", example = "Bearer")
         String tokenType,
-        
         @Schema(description = "UTC ISO 8601 절대 만료 시각", example = "2026-12-21T03:00:00Z")
         Instant expiresAt,
-        
         @Schema(description = "내부 사용자 정보") UserResponse user)
         {
 

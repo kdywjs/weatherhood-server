@@ -11,13 +11,10 @@ import java.util.List;
  * @param hasNext 다음 페이지가 있으면 true
  */
 public record RegionSearchResponse(
-       
         @Schema(description = "최대 20개의 지역 검색 결과")
         List<RegionResponse> items,
-        
         @Schema(description = "0부터 시작하는 페이지 번호", example = "0")
         int page,
-        
         @Schema(description = "다음 페이지 존재 여부") boolean hasNext)
         {
     /**

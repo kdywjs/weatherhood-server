@@ -9,7 +9,6 @@ import java.util.UUID;
  * @param id 내부 사용자 UUID
  */
 public record UserResponse(
-       
         @Schema(description = "내부 사용자 UUID") UUID id)
         {
 }

@@ -11,11 +11,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
  */
 @JsonInclude(JsonInclude.Include.ALWAYS)
 public record DefaultLocationResponse(
-        
-       
         @Schema(description = "current_location 또는 saved_region", example = "current_location")
         String type,
-       
         @Schema(description = "기본 저장 지역 객체, 현재 위치이면 null") RegionResponse region)
         {
 }

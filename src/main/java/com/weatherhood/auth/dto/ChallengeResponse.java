@@ -12,13 +12,10 @@ import java.util.UUID;
  * @param expiresAt   UTC 기준 절대 만료 시각
  */
 public record ChallengeResponse(
-       
         @Schema(description = "이 로그인 시도를 식별하는 UUID")
         UUID challengeId,
-        
         @Schema(description = "Apple 로그인 요청에 그대로 전달할 값")
         String nonce,
-        
         @Schema(description = "UTC ISO 8601 만료 시각", example = "2026-11-21T03:05:00Z") Instant expiresAt)
         {
 

@@ -12,7 +12,6 @@ import jakarta.validation.constraints.NotNull;
  * @param longitude WGS84 경도(도)
  */
 public record ResolveRegionRequest(
-        
         @NotNull @DecimalMin("-90") @DecimalMax("90")
         @Schema(description = "WGS84 위도, -90~90도", example = "37.4012191")
         Double latitude,

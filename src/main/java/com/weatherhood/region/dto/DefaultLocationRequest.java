@@ -12,7 +12,6 @@ import jakarta.validation.constraints.Size;
  * @param regionId 내부 행정동 ID
  */
 public record DefaultLocationRequest(
-        
         @NotBlank @Pattern(regexp = "current_location|saved_region")
         @Schema(description = "current_location 또는 saved_region", example = "current_location")
         String type,

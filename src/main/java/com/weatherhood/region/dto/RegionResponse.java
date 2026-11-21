@@ -9,11 +9,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * @param name 상위 행정구역을 포함한 전체 지역명
  */
 public record RegionResponse(
-        
-       
         @Schema(description = "오늘 날씨 요청과 공유하는 내부 지역 ID", example = "51bf94b3-e51d-5ef7-b00f-45769ea0e8cb")
         String id,
-       
         @Schema(description = "상위 행정구역을 포함한 전체 지역명", example = "경기도 성남시분당구 삼평동") String name)
         {
     /**
