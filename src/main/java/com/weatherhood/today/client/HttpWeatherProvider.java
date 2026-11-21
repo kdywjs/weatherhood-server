@@ -44,6 +44,16 @@ public class HttpWeatherProvider implements WeatherProvider {
     private final String kmaUrl;
     private final String airUrl;
 
+    /**
+     * 의존 객체와 외부 설정을 받아 HttpWeatherProvider를 구성한다.
+     *
+     * @param jsonMapper     날씨 자료 JSON 변환기
+     * @param kmaKey         기상청 API허브 인증키
+     * @param airKey         에어코리아 서비스 키
+     * @param kmaUrl         기상청 API 기본 주소
+     * @param airUrl         에어코리아 API 기본 주소
+     * @param sunTimesClient 일출·일몰 조회 클라이언트
+     */
     public HttpWeatherProvider(JsonMapper jsonMapper, @Value("${KMA_API_HUB_KEY:}") String kmaKey,
                                @Value("${AIRKOREA_SERVICE_KEY:}") String airKey,
                                @Value("${weather.kma-url:https://apihub.kma.go.kr/api/typ02/openApi/VilageFcstInfoService_2.0/}") String kmaUrl,

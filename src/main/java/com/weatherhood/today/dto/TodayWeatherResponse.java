@@ -23,6 +23,12 @@ import java.util.Map;
 @JsonInclude(JsonInclude.Include.ALWAYS)
 public record TodayWeatherResponse(RegionResponse region, LocalDate date, String timezone,
                                    CurrentWeather current, DailyWeather daily, Map<String, HourlyWeather> hourly) {
+    /**
+     * 서비스 또는 저장소 결과를 응답에 필요한 지역·날씨 정보로 변환한다.
+     *
+     * @param today 서비스가 조합한 오늘 날씨
+     * @return 변환한 TodayWeatherResponse 객체
+     */
     public static TodayWeatherResponse from(TodayWeatherData today) {
         return new TodayWeatherResponse(today.region(), today.date(), today.timezone(),
                 today.current(), today.daily(), Collections.unmodifiableMap(new LinkedHashMap<>(today.hourly())));

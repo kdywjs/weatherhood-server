@@ -20,6 +20,12 @@ import java.util.stream.Collectors;
  * <p>호출·재시도 제한은 수집기가 적용한다. 다른 격자의 자료는 누락 판정에 사용하지 않는다.
  */
 public class WeatherRequestPlanner {
+    /**
+     * 저장 자료를 기준으로 수집 요청을 선택하는 계획기를 생성한다.
+     */
+    public WeatherRequestPlanner() {
+    }
+
     private static final Set<WeatherField> OBSERVATION_FIELDS = Set.of(WeatherField.TEMPERATURE,
             WeatherField.PRECIPITATION_TYPE, WeatherField.PRECIPITATION_AMOUNT, WeatherField.WIND,
             WeatherField.HUMIDITY);

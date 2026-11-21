@@ -20,6 +20,11 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 public record HourlyWeather(Double temperatureC, String sky, String precipitationType,
                             Precipitation precipitationAmount, Double windSpeedMps, Double humidityPercent,
                             Double precipitationProbabilityPercent, AirQuality airQuality) {
+    /**
+     * 이 시간 슬롯의 모든 날씨 항목이 누락됐는지 확인한다.
+     *
+     * @return 모든 항목이 null이면 true
+     */
     @JsonIgnore
     public boolean isEmpty() {
         return temperatureC == null && sky == null && precipitationType == null && precipitationAmount == null

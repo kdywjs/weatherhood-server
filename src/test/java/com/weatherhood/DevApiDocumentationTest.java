@@ -33,7 +33,7 @@ class DevApiDocumentationTest {
     }
 
     @Test
-    void corsAllowsOnlyDocumentationReadsWithoutCredentials() throws Exception {
+    void corsAllowsDocumentationApiMethodsWithoutCookies() throws Exception {
         try (var client = HttpClient.newHttpClient()) {
             var allowed = client.send(preflight(DOCUMENTATION_ORIGIN, "GET"),
                     HttpResponse.BodyHandlers.ofString());
@@ -45,7 +45,20 @@ class DevApiDocumentationTest {
             assertThat(otherOrigin.statusCode()).isEqualTo(403);
             var writeRequest = client.send(preflight(DOCUMENTATION_ORIGIN, "POST"),
                     HttpResponse.BodyHandlers.ofString());
-            assertThat(writeRequest.statusCode()).isEqualTo(403);
+            assertThat(writeRequest.statusCode()).isEqualTo(200);
+            var authenticatedRequest = client.send(HttpRequest.newBuilder(
+                                    URI.create("http://localhost:" + port + "/api/v1/me/regions"))
+                            .header("Origin", DOCUMENTATION_ORIGIN)
+                            .header("Access-Control-Request-Method", "PUT")
+                            .header("Access-Control-Request-Headers", "Authorization,Content-Type")
+                            .method("OPTIONS", HttpRequest.BodyPublishers.noBody()).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertThat(authenticatedRequest.statusCode()).isEqualTo(200);
+            assertThat(authenticatedRequest.headers().firstValue("Access-Control-Allow-Headers").orElseThrow())
+                    .containsIgnoringCase("authorization");
+            var rejected = client.send(preflight(DOCUMENTATION_ORIGIN, "PATCH"),
+                    HttpResponse.BodyHandlers.ofString());
+            assertThat(rejected.statusCode()).isEqualTo(403);
         }
     }
 

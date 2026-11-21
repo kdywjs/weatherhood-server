@@ -13,6 +13,13 @@ import java.time.OffsetDateTime;
  */
 public record ExactPrecipitation(String kind, double value, String unit, OffsetDateTime periodStart,
                                  OffsetDateTime periodEnd) implements Precipitation {
+    /**
+     * 단위를 mm로 고정한 정확한 강수량을 생성한다.
+     *
+     * @param value 정확한 강수량(mm)
+     * @param start 강수량 집계 시작 시각(포함)
+     * @param end   강수량 집계 종료 시각(제외)
+     */
     public ExactPrecipitation(double value, OffsetDateTime start, OffsetDateTime end) {
         this("exact", value, "mm", start, end);
     }

@@ -12,6 +12,12 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 public class WeatherConfiguration {
+    /**
+     * Spring이 날씨 조회용 공통 시계를 등록할 때 사용하는 생성자.
+     */
+    public WeatherConfiguration() {
+    }
+
     @Bean
     Clock weatherClock() {
         return Clock.systemUTC();

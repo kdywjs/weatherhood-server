@@ -31,6 +31,21 @@ import java.util.Objects;
  * 모든 값이 없는 시간도 null 슬롯으로 유지한다. DB와 외부 HTTP를 호출하지 않는다.
  */
 public class WeatherComposer {
+    /**
+     * DB와 외부 호출에 의존하지 않는 날씨 조합기를 생성한다.
+     */
+    public WeatherComposer() {
+    }
+
+    /**
+     * 공급처 우선순위와 유효성을 적용해 현재·하루·24시간 정보를 조합한다.
+     *
+     * @param region      행정동 식별 정보
+     * @param date        조회할 한국 날짜
+     * @param now         현재 시각
+     * @param weatherData 공급처별 저장 날씨 자료
+     * @return 값이 없으면 null을 포함하는 오늘 날씨
+     */
     public TodayWeatherData composeTodayWeather(WeatherRegion region, LocalDate date, OffsetDateTime now,
                                                 List<WeatherDatum> weatherData) {
         List<WeatherDatum> data = weatherData.stream().filter(datum -> matchesRegion(region, datum)).toList();
@@ -73,6 +88,13 @@ public class WeatherComposer {
                 findSunEventTime(data, WeatherField.SUNSET, date, now));
     }
 
+    /**
+     * 항목과 공급 유형별 허용 기간으로 저장값의 사용 가능 여부를 판정한다.
+     *
+     * @param datum 유효성을 판정할 정규화 자료
+     * @param now   현재 시각
+     * @return 현재 기준으로 사용할 수 있으면 true
+     */
     public boolean isUsable(WeatherDatum datum, OffsetDateTime now) {
         if (datum.value() == null || datum.issued().isAfter(now)) {
             return false;
@@ -132,6 +154,12 @@ public class WeatherComposer {
                 .findFirst().orElse(null);
     }
 
+    /**
+     * 현재·하루·시간별 날씨를 하나도 확보하지 못했는지 확인한다.
+     *
+     * @param targetTime 데이터 포함 여부를 확인할 오늘 날씨
+     * @return 제공할 값이 하나도 없으면 true
+     */
     public static boolean hasNoWeatherData(TodayWeatherData targetTime) {
         return targetTime.current().temperatureC() == null && targetTime.current().airQuality() == null
                 && targetTime.daily().temperatureMinC() == null && targetTime.daily().temperatureMaxC() == null

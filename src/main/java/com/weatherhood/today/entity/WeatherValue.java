@@ -35,34 +35,72 @@ public class WeatherValue {
     @Column(nullable = false, columnDefinition = "text")
     private String payload;
 
+    /**
+     * 저장 자료의 공급 유형을 반환한다.
+     *
+     * @return 저장 자료의 공급 유형
+     */
     public String source() {
         return source;
     }
 
+    /**
+     * 공급 자료를 공유하는 위치 키를 반환한다.
+     *
+     * @return 공급 자료를 공유하는 위치 키
+     */
     public String location() {
         return location;
     }
 
+    /**
+     * 저장한 날씨 항목 식별자를 반환한다.
+     *
+     * @return 저장한 날씨 항목 식별자
+     */
     public String field() {
         return field;
     }
 
+    /**
+     * 자료가 나타내는 대상 시각을 반환한다.
+     *
+     * @return 자료가 나타내는 대상 시각
+     */
     public OffsetDateTime target() {
         return target;
     }
 
+    /**
+     * 자료의 발표 시각을 반환한다.
+     *
+     * @return 자료의 발표 시각
+     */
     public OffsetDateTime issued() {
         return issued;
     }
 
+    /**
+     * 공급 자료를 서버에 저장한 시각을 반환한다.
+     *
+     * @return 공급 자료를 서버에 저장한 시각
+     */
     public OffsetDateTime collected() {
         return collected;
     }
 
+    /**
+     * 정규화한 날씨값의 JSON을 반환한다.
+     *
+     * @return 정규화한 날씨값의 JSON
+     */
     public String payload() {
         return payload;
     }
 
+    /**
+     * JPA가 영속 상태를 복원할 때 사용하는 생성자.
+     */
     protected WeatherValue() {
     }
 }

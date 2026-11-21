@@ -11,10 +11,10 @@ import javax.sql.DataSource;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.boot.availability.AvailabilityChangeEvent;
 import org.springframework.boot.availability.ReadinessState;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Import;
 
@@ -63,12 +63,12 @@ class WeatherhoodServerApplicationTests {
                 names.add(tables.getString(1));
             }
             assertThat(names).contains("flyway_schema_history", "weather_value", "weather_region",
-                    "weather_collection");
+                    "weather_collection", "user_account", "user_session", "login_challenge", "saved_region");
         }
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("4");
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("5");
         assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
         assertThat(entityManagerFactory.isOpen()).isTrue();
-        assertThat(entityManagerFactory.getMetamodel().getEntities()).hasSize(2);
+        assertThat(entityManagerFactory.getMetamodel().getEntities()).hasSize(6);
     }
 
     @Test
