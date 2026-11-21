@@ -132,10 +132,10 @@ GitHub `dev` 환경에는 `DEV_SSH_KEY`, `DEV_SSH_KNOWN_HOSTS`를 Secrets로, `D
 - 외부 개발자에게 Swagger UI와 OpenAPI JSON을 제공하고 NPM의 Basic Auth로 보호한다. 별도의 문서용 로그인 화면·회원가입·사용자 DB를 구현하지 않는다. 스펙 레포는 요구사항·계약의 원본으로 유지하고 Swagger는 배포된 API의 조회·호출 도구로 함께 사용한다.
 - 문서는 `weatherhood-dev-docs.ansandy.co.kr`, 앱 API는 `weatherhood-dev-api.ansandy.co.kr`으로 분리한다. 문서 호스트에는 HTTPS와 NPM 인증을 적용하고 Swagger UI·swagger-config·OpenAPI JSON을 모두 보호한다. API 호스트에서는 Swagger·OpenAPI 경로를 차단하여 인증 우회를 막는다.
 - 개발자에게 문서용 인증 정보를 제공하고 앱의 `/api/*`에는 문서용 Basic Auth를 강제하지 않는다. 인증 정보 발급·폐기는 NPM에서 관리하며 비밀번호를 Git·문서에 기록하지 않는다.
-- `dev` 프로필의 `DevApiDocumentationConfiguration`이 OpenAPI 서버 주소를 HTTPS API 호스트로 고정하고, 문서 출처에서 `/api/**`의 GET만 CORS로 허용한다. 교차 출처 자격 증명은 허용하지 않는다.
+- `dev` 프로필의 `DevApiDocumentationConfiguration`이 OpenAPI 서버 주소를 HTTPS API 호스트로 고정하고, 문서 출처에서 `/api/**`의 GET·POST·PUT·DELETE와 Authorization·Content-Type 헤더를 CORS로 허용한다. 교차 출처 쿠키는 허용하지 않는다.
 - NPM 접근 목록 `weatherhood-dev-docs`는 사용자 인증과 `allow all` IP 규칙을 모두 만족해야 한다(`Satisfy Any` 끔). `Pass Auth to Host`는 끈다. IP 규칙이 비어 있으면 기본 `deny all`로 인증 전 403이 발생한다.
 - 문서 프록시는 `/swagger-ui/`, `/swagger-ui.html`, `/v3/api-docs`와 하위 설정 경로, `/v3/api-docs.yaml`만 허용하고 나머지는 404로 차단한다.
-- Try it out은 별도 API 호스트를 사용한다. 초기 테스트 환경에는 앱 인증·호출 제한을 적용하지 않는다. 문서 호스트를 허용하는 필요한 CORS 설정을 검증하고 문서용 Basic Auth 자격증명을 앱 API 인증으로 재사용하지 않는다.
+- Try it out은 별도 API 호스트를 사용한다. 날씨·공개 지역 API는 인증 없이 제공하고 개인 지역·계정 API에는 Bearer 인증을 적용한다. 호출 제한은 별도 도입하지 않는다. 문서 호스트를 허용하는 필요한 CORS 설정을 검증하고 문서용 Basic Auth 자격증명을 앱 API 인증으로 재사용하지 않는다.
 - Actuator 상세와 기타 관리 경로는 계속 외부 차단한다. 최소 외부 상태 응답은 상세 진단 데이터와 분리한다.
 - NPM 인증 동작은 도메인 연결 후 실제로 검증한다. 인증 실패 시 무인증 공개로 대체하지 않고 문서 외부 제공 완료 처리를 보류한다. 현재 알려진 인증 문제의 원인 분석은 해당 단계에서 수행한다.
 
@@ -148,7 +148,7 @@ GitHub `dev` 환경에는 `DEV_SSH_KEY`, `DEV_SSH_KNOWN_HOSTS`를 Secrets로, `D
 | GHCR 패키지 존재·Actions 접근 권한 | 패키지 조회 권한 확보 또는 첫 게시 후 |
 | `/healthz` 응답과 Flyway 이력 비교·차단 동작 검증 | 배포 구현 시 |
 
-앱 인증과 호출 제한은 초기 테스트 배포 범위에서 제외하며 외부 연결의 선행 조건으로 두지 않는다. 추후 필요해지면 별도 스펙으로 결정한다.
+개인 API 인증은 [인증 스펙](../../weatherhood-specs/specs/authentication/requirements.md)을 따른다. 호출 제한은 후속 범위다. 인증 연동은 미니 PC의 보호된 `.env`와 `secrets/apple-signin.p8`을 사용한다. `.p8`은 UID 10001·권한 400으로 보관하고 컨테이너 `/run/secrets/apple-signin.p8`에 읽기 전용 마운트한다. 키 원문은 GHCR 이미지나 GitHub 설정에 넣지 않는다.
 
 ## 수용 기준
 
@@ -163,7 +163,7 @@ GitHub `dev` 환경에는 `DEV_SSH_KEY`, `DEV_SSH_KNOWN_HOSTS`를 Secrets로, `D
 - 서버 준비 상태와 DB 연결을 5초마다 최대 2분 확인한다. 외부 공급처 장애는 준비 상태 실패로 처리하지 않으며, 외부 HTTPS 연결 실패와 내부 기동 실패를 구분한다.
 - SSH 작업 종료 후에도 서버가 유지되며, 합의된 재부팅 검증에서 Ubuntu 로그인 없이 Docker·서버·PostgreSQL이 복구되는지 확인한다. 기존 서비스 정상 상태도 비교한다.
 - 도메인 연결 후 외부 네트워크의 테스트 앱이 VPN 없이 HTTPS API에 접근한다.
-- 외부 개발자는 합의한 접근 정책에 따라 Swagger UI·OpenAPI 명세를 볼 수 있다. DB·비공개 관리 경로는 외부 차단되고 앱 API는 초기 테스트 범위에서 인증·호출 제한 없이 접근할 수 있다.
+- 외부 개발자는 합의한 접근 정책에 따라 Swagger UI·OpenAPI 명세를 볼 수 있다. DB·비공개 관리 경로는 외부 차단되고 날씨·지역 조회는 공개이며 개인 API는 유효한 세션을 요구한다.
 - 문서 호스트는 인증 없이 접근할 수 없고 올바른 NPM 인증으로 UI·설정·OpenAPI JSON을 열람할 수 있다. API 호스트를 통한 문서 우회 접근은 차단되고 앱 API에 문서 인증창이 표시되지 않는다.
 
 ## 참고 및 검증

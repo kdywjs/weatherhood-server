@@ -32,6 +32,14 @@ public class TodayWeatherService {
     private final Clock clock;
     private final WeatherComposer composer = new WeatherComposer();
 
+    /**
+     * 의존 객체와 외부 설정을 받아 TodayWeatherService를 구성한다.
+     *
+     * @param regionRepository 행정동 저장소
+     * @param weatherStore     날씨 및 수집 상태 저장소
+     * @param weatherCollector 요청 시 필요한 공급 자료 수집기
+     * @param clock            만료 및 발표 시각 판정에 사용할 시계
+     */
     public TodayWeatherService(WeatherRegionRepository regionRepository, WeatherStore weatherStore,
                                WeatherCollector weatherCollector, Clock clock) {
         this.regionRepository = regionRepository;

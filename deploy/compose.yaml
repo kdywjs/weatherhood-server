@@ -38,6 +38,19 @@ services:
       KMA_API_HUB_KEY: ${KMA_API_HUB_KEY:?Required}
       AIRKOREA_SERVICE_KEY: ${AIRKOREA_SERVICE_KEY:?Required}
       KASI_SERVICE_KEY: ${KASI_SERVICE_KEY:?Required}
+      KAKAO_REST_API_KEY: ${KAKAO_REST_API_KEY:?Required}
+      APPLE_CLIENT_ID: ${APPLE_CLIENT_ID:?Required}
+      APPLE_TEAM_ID: ${APPLE_TEAM_ID:?Required}
+      APPLE_KEY_ID: ${APPLE_KEY_ID:?Required}
+      APPLE_PRIVATE_KEY_PATH: /run/secrets/apple-signin.p8
+      AUTH_TOKEN_ENCRYPTION_KEY: ${AUTH_TOKEN_ENCRYPTION_KEY:?Required}
+    volumes:
+      - type: bind
+        source: /opt/weatherhood-dev/secrets/apple-signin.p8
+        target: /run/secrets/apple-signin.p8
+        read_only: true
+        bind:
+          create_host_path: false
     depends_on:
       postgres:
         condition: service_healthy

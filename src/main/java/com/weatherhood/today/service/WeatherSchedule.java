@@ -12,6 +12,9 @@ import java.time.temporal.ChronoUnit;
  * 모든 입력 시각은 한국 현지 시각으로 전달해야 한다.
  */
 public final class WeatherSchedule {
+    /**
+     * 날씨 날짜와 시간 슬롯을 판정할 한국 표준시.
+     */
     public static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private WeatherSchedule() {

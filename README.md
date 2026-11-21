@@ -45,9 +45,35 @@ Compose는 `.env`를 읽지만 Spring Boot는 자동으로 읽지 않으므로 �
 
 공급처 키는 Git에서 제외한 `.env`에 설정한다. 일출·일몰의 저장·재조회 기준과 외부 API 계약은 [오늘 날씨 설계](../weatherhood-specs/specs/today-weather/design.md#일출일몰-연동과-저장)를 따른다. KASI의 일일 호출 상한은 `weather.kasi-daily-limit`(초기값 10000)으로 설정한다.
 
+## Apple 로그인과 지역 API 실행
+
+[인증 API 계약](../weatherhood-specs/contracts/auth-api.md)과 [지역 API 계약](../weatherhood-specs/contracts/region-api.md)이 원본이다. 날씨와 공개 지역 조회는 키 설정 없이도 기동할 수 있으나, Apple 설정이 없으면 로그인은 503으로 실패한다. 카카오 키가 없으면 좌표 변환만 503이다.
+
+| 환경변수 | 설명 |
+| --- | --- |
+| APPLE_CLIENT_ID | native iOS Bundle ID. 기본값 co.kr.ansandy.weatherhood |
+| APPLE_TEAM_ID / APPLE_KEY_ID | Apple Developer의 팀·전용 키 식별자 |
+| APPLE_PRIVATE_KEY_PATH | 서버에서 읽을 수 있는 Git 외부 .p8 절대 경로 |
+| AUTH_TOKEN_ENCRYPTION_KEY | 암호학적 난수 32바이트의 Base64. Apple refresh token 암호화용 |
+| KAKAO_REST_API_KEY | 카카오 로컬 API용 REST 키 |
+
+현재 개발 머신의 인증 설정은 `~/.config/weatherhood/auth.env`(권한 600), Apple 키는 같은 보호 폴더의 `apple/`에 둔다. 로컬 실행 시 기존 `.env` 다음에 설정을 읽는다. 비밀값을 터미널에 출력하지 않는다.
+
+```sh
+set -a
+. ./.env
+. ~/.config/weatherhood/auth.env
+set +a
+./gradlew bootRun
+```
+
+컨테이너에서는 .p8을 읽기 전용 secret 파일로 마운트하고 경로와 암호화 키를 실행 환경에 공급한다. 이미지·GitHub 로그·문서에 키를 넣지 않는다. 암호화 키를 바꾸려면 기존 암호문 재암호화가 필요하므로 단순 교체하지 않는다. 개발 테스트 서버의 `/opt/weatherhood-dev/.env`에 인증 환경변수를 공급하고 `.p8`은 `/opt/weatherhood-dev/secrets/apple-signin.p8`에서 컨테이너 `/run/secrets/apple-signin.p8`으로 읽기 전용 마운트한다. 키는 컨테이너 UID 10001 소유·권한 400이다.
+
+Swagger의 Authorize에 **Weatherhood 세션 토큰**을 입력한다. NPM 문서용 Basic Auth와 별개이며 Apple identity token을 개인 API Bearer로 사용하지 않는다. dev 문서 출처의 GET·POST·PUT·DELETE만 CORS로 허용하고 쿠키는 사용하지 않는다.
+
 ## 스키마
 
-Flyway가 먼저 실행되고 JPA는 `validate`로 검증한다. `V1__initialize_database.sql`은 업무 테이블을 만들지 않고 초기 적용 이력만 남긴다. 기능별 DDL은 후속 버전으로 추가한다. 적용된 파일을 수정하지 않는다. V2~V4에는 날씨 저장·행정동 적재·호출량 관리 테이블이 있으며 JPA 매핑을 검증한다.
+Flyway가 먼저 실행되고 JPA는 `validate`로 검증한다. `V1__initialize_database.sql`은 업무 테이블을 만들지 않고 초기 적용 이력만 남긴다. 기능별 DDL은 후속 버전으로 추가한다. 적용된 파일을 수정하지 않는다. V2~V4에는 날씨 저장·행정동 적재·호출량 관리 테이블이 있고 V5에는 계정·세션·challenge·저장 지역이 있다. JPA 매핑을 검증한다.
 
 ## 테스트와 빌드
 
@@ -75,3 +101,7 @@ Docker가 실행 중이어야 한다. 테스트에서는 `@ServiceConnection`이
 - 일출·일몰은 실제 DB 저장·재조회·당일 호출 억제·날짜 변경·부분 응답 보충을 HTTP 통합 테스트했다. XML 날짜·시각 검증, 외부 엔티티 차단, 인증 오류 처리도 확인했다.
 - 2026-11-15 실제 `KasiSunTimesClient` 인증 호출에서 서울 기준 일출 07:11, 일몰 17:22를 정상 수신했다. 이는 단일 위치 표본이며 전국 검증을 대신하지 않는다.
 - 외부 API는 자동 테스트에서 대역을 사용한다. 실제 인증 표본 조회와 공식 근거는 [기능 설계](../weatherhood-specs/specs/today-weather/design.md#참고-및-검증)를 따른다. 전국·악천후 전 유형·부하·동시 수집 전체 검증은 완료하지 않았다.
+
+- 2026-11-21 Apple 로그인·지역 서버 구현: 실제 RSA/ES256 서명과 HTTP 공급처 대역, PostgreSQL 18.6을 사용해 로그인·30일 만료·재사용 차단·로그아웃·탈퇴·격리·동시 추가 제한·순서·기본 지역·검색·좌표 매핑을 검증했다. `./gradlew test bootJar javadoc --console=plain`에서 테스트 88개 통과(실패·오류·건너뜀 0), 실행 JAR·Javadoc 생성 성공. Javadoc의 주석·태그 누락 경고는 0개다. 변경 Java 파일 78개에 프로젝트 XML을 이용한 IntelliJ CLI 포매터를 적용하고 120자·wildcard import·diff 공백을 확인했다.
+- 카카오 공식 예제 좌표 37.4012191, 127.1086228을 실제 인증 조회해 H 코드 4113565500을 받았고 기존 삼평동 ID 51bf94b3-e51d-5ef7-b00f-45769ea0e8cb와 연결됨을 확인했다. 이는 단일 표본이며 전국 경계 검증을 의미하지 않는다.
+- Apple 앱 ID·전용 키 등록과 로컬 보관은 완료했다. 실제 사용자 Apple 코드 교환·iOS 로그인은 아직 수행하지 않았다. 개발 테스트 서버 배포 결과는 GitHub Actions 실행과 배포 설계를 참조한다.

@@ -56,6 +56,15 @@ public class WeatherCollector {
             new Semaphore(4, true), "kasi", new Semaphore(4, true));
     private final ConcurrentMap<String, Instant> providerBlockedUntil = new ConcurrentHashMap<>();
 
+    /**
+     * 의존 객체와 외부 설정을 받아 WeatherCollector를 구성한다.
+     *
+     * @param weatherStore   날씨 및 수집 상태 저장소
+     * @param provider       외부 날씨 공급처 클라이언트
+     * @param kmaDailyLimit  기상청 일일 호출 상한
+     * @param airDailyLimit  에어코리아 일일 호출 상한
+     * @param kasiDailyLimit 한국천문연구원 일일 호출 상한
+     */
     public WeatherCollector(WeatherStore weatherStore, WeatherProvider provider,
                             @Value("${weather.kma-daily-limit:1000}") int kmaDailyLimit,
                             @Value("${weather.air-daily-limit:500}") int airDailyLimit,

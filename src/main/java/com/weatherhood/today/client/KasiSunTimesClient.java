@@ -51,6 +51,12 @@ public class KasiSunTimesClient {
     private final String serviceKey;
     private final String baseUrl;
 
+    /**
+     * 의존 객체와 외부 설정을 받아 KasiSunTimesClient를 구성한다.
+     *
+     * @param serviceKey 한국천문연구원 서비스 키
+     * @param baseUrl    공급처 API 기본 주소
+     */
     public KasiSunTimesClient(@Value("${KASI_SERVICE_KEY:}") String serviceKey,
                               @Value("${weather.kasi-url:https://apis.data.go.kr/B090041/openapi/service/RiseSetInfoService/}") String baseUrl) {
         this.serviceKey = serviceKey;

@@ -30,14 +30,41 @@ public class WeatherRegion {
     private String pm10Station;
     private String pm25Station;
 
+    /**
+     * JPA가 영속 상태를 복원할 때 사용하는 생성자.
+     */
     protected WeatherRegion() {
     }
 
+    /**
+     * 행정동과 기상 격자·측정소·선택적 대표 좌표를 연결한다.
+     *
+     * @param id          내부 행정동 ID
+     * @param name        상위 행정구역을 포함한 전체 지역명
+     * @param supported   날씨 제공을 지원하는 지역인지 여부
+     * @param nx          기상청 격자 X, 미매핑이면 null
+     * @param ny          기상청 격자 Y, 미매핑이면 null
+     * @param pm10Station PM10 조회 측정소, 미매핑이면 null
+     * @param pm25Station PM2.5 조회 측정소, 미매핑이면 null
+     */
     public WeatherRegion(String id, String name, boolean supported, Integer nx, Integer ny, String pm10Station,
                          String pm25Station) {
         this(id, name, supported, nx, ny, pm10Station, pm25Station, null, null);
     }
 
+    /**
+     * 행정동과 기상 격자·측정소·선택적 대표 좌표를 연결한다.
+     *
+     * @param id          내부 행정동 ID
+     * @param name        상위 행정구역을 포함한 전체 지역명
+     * @param supported   날씨 제공을 지원하는 지역인지 여부
+     * @param nx          기상청 격자 X, 미매핑이면 null
+     * @param ny          기상청 격자 Y, 미매핑이면 null
+     * @param pm10Station PM10 조회 측정소, 미매핑이면 null
+     * @param pm25Station PM2.5 조회 측정소, 미매핑이면 null
+     * @param latitude    WGS84 위도(도)
+     * @param longitude   WGS84 경도(도)
+     */
     public WeatherRegion(String id, String name, boolean supported, Integer nx, Integer ny, String pm10Station,
                          String pm25Station, Double latitude, Double longitude) {
         this.latitude = latitude;
@@ -51,34 +78,74 @@ public class WeatherRegion {
         this.pm25Station = pm25Station;
     }
 
+    /**
+     * 내부 식별자를 반환한다.
+     *
+     * @return 내부 식별자
+     */
     public String id() {
         return id;
     }
 
+    /**
+     * 지역의 전체 표시 이름을 반환한다.
+     *
+     * @return 지역의 전체 표시 이름
+     */
     public String name() {
         return name;
     }
 
+    /**
+     * 이 행정동의 날씨 제공 지원 여부를 반환한다.
+     *
+     * @return 지원하면 true
+     */
     public boolean supported() {
         return supported;
     }
 
+    /**
+     * 기상청 격자 X를 반환한다.
+     *
+     * @return 격자 X, 미매핑이면 null
+     */
     public Integer nx() {
         return nx;
     }
 
+    /**
+     * 기상청 격자 Y를 반환한다.
+     *
+     * @return 격자 Y, 미매핑이면 null
+     */
     public Integer ny() {
         return ny;
     }
 
+    /**
+     * 기상청 격자를 X,Y 문자열로 반환한다.
+     *
+     * @return X,Y 키, 어느 한 축이라도 없으면 null
+     */
     public String grid() {
         return nx == null || ny == null ? null : nx + "," + ny;
     }
 
+    /**
+     * PM10 자료를 조회할 측정소 이름을 반환한다.
+     *
+     * @return 측정소 이름, 미매핑이면 null
+     */
     public String pm10Station() {
         return pm10Station;
     }
 
+    /**
+     * PM2.5 자료를 조회할 측정소 이름을 반환한다.
+     *
+     * @return 측정소 이름, 미매핑이면 null
+     */
     public String pm25Station() {
         return pm25Station;
     }

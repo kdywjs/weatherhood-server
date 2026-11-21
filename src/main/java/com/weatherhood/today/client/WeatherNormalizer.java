@@ -111,6 +111,14 @@ public final class WeatherNormalizer {
         };
     }
 
+    /**
+     * 기상청 범주별 수치를 내부 항목과 대상 시각으로 정규화한다.
+     *
+     * @param source   원본 공급 자료 유형
+     * @param location 공급 자료를 공유하는 위치 키
+     * @param items    공급처 원본 JSON 항목 배열
+     * @return 유효하게 정규화된 자료 목록
+     */
     public static List<WeatherDatum> normalizeKmaItems(WeatherSource source, String location, JsonNode items) {
         List<WeatherDatum> result = new ArrayList<>();
         for (JsonNode item : items) {
@@ -137,6 +145,13 @@ public final class WeatherNormalizer {
         return result;
     }
 
+    /**
+     * 에어코리아 측정 항목을 단위·구간이 포함된 내부 자료로 정규화한다.
+     *
+     * @param station 대기질 측정소 이름
+     * @param items   공급처 원본 JSON 항목 배열
+     * @return 유효하게 정규화된 자료 목록
+     */
     public static List<WeatherDatum> normalizeAirQualityItems(String station, JsonNode items) {
         List<WeatherDatum> result = new ArrayList<>();
         for (JsonNode item : items) {

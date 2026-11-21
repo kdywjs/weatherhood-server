@@ -29,6 +29,12 @@ public class WeatherStore {
     private final EntityManager entityManager;
     private final JsonMapper jsonMapper;
 
+    /**
+     * 의존 객체와 외부 설정을 받아 WeatherStore를 구성한다.
+     *
+     * @param entityManager JPA 및 네이티브 SQL 실행기
+     * @param jsonMapper    날씨 자료 JSON 변환기
+     */
     public WeatherStore(EntityManager entityManager, JsonMapper jsonMapper) {
         this.entityManager = entityManager;
         this.jsonMapper = jsonMapper;
@@ -98,6 +104,12 @@ public class WeatherStore {
                 }).toList();
     }
 
+    /**
+     * 수집 요청의 다음 시도 가능 시각을 조회한다.
+     *
+     * @param key 공급 유형·위치·발표 시각을 포함한 수집 키
+     * @return 다음 시도 가능 시각, 저장 이력이 없으면 null
+     */
     @Transactional(readOnly = true)
     public OffsetDateTime findNextAttemptTime(String key) {
         var rows = entityManager.createNativeQuery("select next_attempt from weather_collection where id=:id",
@@ -123,11 +135,21 @@ public class WeatherStore {
                 .setParameter("limit", limit).getResultList().isEmpty();
     }
 
+    /**
+     * 수집 시각·다음 시도 시각과 성공 여부를 저장한다.
+     *
+     * @param key     공급 유형·위치·발표 시각을 포함한 수집 키
+     * @param now     현재 시각
+     * @param next    다음 수집 시도가 가능한 시각
+     * @param success 이번 수집 성공 여부
+     */
     @Transactional
     public void recordCollectionAttempt(String key, OffsetDateTime now, OffsetDateTime next, boolean success) {
         entityManager.createNativeQuery("""
-                        insert into weather_collection(id,next_attempt,last_attempt,last_success) values(:id,:next,:now,:success)
-                        on conflict(id) do update set next_attempt=excluded.next_attempt,last_attempt=excluded.last_attempt,
+                        insert into weather_collection(id,next_attempt,last_attempt,last_success)
+                        values(:id,:next,:now,:success)
+                        on conflict(id) do update set next_attempt=excluded.next_attempt,
+                        last_attempt=excluded.last_attempt,
                         last_success=coalesce(excluded.last_success,weather_collection.last_success)
                         """).setParameter("id", key).setParameter("next", next).setParameter("now", now)
                 .setParameter("success", success ? now : null).executeUpdate();

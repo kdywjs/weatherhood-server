@@ -44,6 +44,7 @@ src/main/java/com/weatherhood/
     └── client/       # 외부 API 호출·공급 응답 정규화
 ```
 
+- `auth/`와 `region/`도 같은 역할별 패키지를 사용한다. `auth/config`는 인증 필터와 SecurityFilterChain을 담당한다.
 - 기본 흐름은 Controller → Service → Repository 또는 외부 API Client다. Repository와 Client는 Controller나 Service를 참조하지 않는다.
 - 컨트롤러용 요청·응답 DTO는 각각 `Request`·`Response` 접미사를 사용한다. 내부 처리용 타입에는 이 규칙을 적용하지 않는다.
 - Controller는 Entity를 직접 반환하지 않는다. 응답 전용 DTO를 `ResponseEntity<ApiResponse<T>>`로 반환한다. Service는 `ResponseEntity`와 HTTP 상태를 알지 않는다.
@@ -64,7 +65,7 @@ src/main/java/com/weatherhood/
 
 Testcontainers의 임시 컨테이너와 데이터는 수명 종료 시 정리한다. 컨테이너를 여러 테스트에서 공유할 경우 테스트 사이의 데이터는 자동 초기화되지 않으므로 롤백·삭제 등으로 격리한다. 컨테이너 공유 범위와 초기화 방법은 테스트 구성 시 정한다.
 
-로컬 DB는 Docker Compose의 PostgreSQL 18.6으로 실행하며 통합 테스트도 같은 이미지 버전을 사용한다. 운영 DB 버전·환경은 별도 결정한다. 인증 제공자·세션 또는 토큰 방식, 보안 라이브러리 구성은 인증 설계 시 결정한다. 공급처 수집·재시도·보관 구현과 운영 수치는 기능 설계·공급처 검증 후 정한다.
+로컬 DB는 Docker Compose의 PostgreSQL 18.6으로 실행하며 통합 테스트도 같은 이미지 버전을 사용한다. 운영 DB 버전·환경은 별도 결정한다. 인증 경계는 Spring Security를 사용하며 기능별 토큰·Apple 연동·DB 정책은 [인증 설계](../../weatherhood-specs/specs/authentication/design.md)를 따른다. 공급처 수집·재시도·보관 구현과 운영 수치는 기능 설계·공급처 검증 후 정한다.
 
 ## 참고 및 검증
 
