@@ -22,9 +22,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -35,6 +39,8 @@ import tools.jackson.databind.json.JsonMapper;
  */
 @Component
 public class HttpWeatherProvider implements WeatherProvider {
+    private static final Logger LOG = LoggerFactory.getLogger(HttpWeatherProvider.class);
+
     private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2))
             .followRedirects(HttpClient.Redirect.NEVER).build();
     private final KasiSunTimesClient sunTimesClient;
@@ -75,31 +81,56 @@ public class HttpWeatherProvider implements WeatherProvider {
         boolean airQualityRequest = request.source() == WeatherSource.AIR;
         String key = airQualityRequest ? airKey : kmaKey;
         if (key.isBlank()) {
+            LOG.warn("Weather credential missing source={} release={}", request.source(), request.release());
             throw new WeatherProviderException(Reason.AUTHENTICATION, true, 0);
         }
         URI requestUri = buildRequestUri(request, airQualityRequest);
+        long start = System.nanoTime();
+        int status = 0;
+        String resultCode = "-";
         try {
             var response = client.send(HttpRequest.newBuilder(requestUri).timeout(Duration.ofSeconds(2)).GET().build(),
                     HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() != 200) {
+            status = response.statusCode();
+            if (status != 200) {
                 long retry = parseRetryAfterSeconds(response.headers().firstValue("Retry-After").orElse(""));
                 throw new WeatherProviderException(
                         response.statusCode() == 401 || response.statusCode() == 403
                                 ? Reason.AUTHENTICATION : Reason.UNAVAILABLE, true, retry);
             }
-            return parseResponse(request, airQualityRequest, response.body());
-
+            var root = jsonMapper.readTree(response.body()).path("response");
+            String code = root.path("header").path("resultCode").asString("");
+            resultCode = code.matches("[0-9]{2}") ? code : "unknown";
+            var result = parseResponse(request, airQualityRequest, root, code);
+            if (!result.complete()) {
+                logUnsuccessfulCall(request, start, status, resultCode, "INCOMPLETE");
+            }
+            return result;
+        } catch (WeatherProviderException exception) {
+            logUnsuccessfulCall(request, start, status, resultCode, exception.reason().name());
+            throw exception;
         } catch (InterruptedException exception) {
+            logUnsuccessfulCall(request, start, status, resultCode, "INTERRUPTED");
             Thread.currentThread().interrupt();
             throw new WeatherProviderException(Reason.INTERRUPTED, false, 300);
         } catch (HttpTimeoutException exception) {
+            logUnsuccessfulCall(request, start, status, resultCode, "TIMEOUT");
             // One slow forecast must not suppress unrelated regions or observation requests.
             throw new WeatherProviderException(Reason.UNAVAILABLE, false, 300);
         } catch (IOException exception) {
+            logUnsuccessfulCall(request, start, status, resultCode, "IO_ERROR");
             throw new WeatherProviderException(Reason.UNAVAILABLE, true, 300);
         } catch (JacksonException exception) {
+            logUnsuccessfulCall(request, start, status, resultCode, "INVALID_RESPONSE");
             throw new WeatherProviderException(Reason.INVALID_RESPONSE, true, 300);
         }
+    }
+
+    private void logUnsuccessfulCall(Request request, long start, int status, String resultCode, String reason) {
+        LOG.warn("Weather collection source={} location={} release={} reason={} elapsedMs={} " +
+                        "httpStatus={} resultCode={}",
+                request.source(), request.location(), request.release(), reason,
+                TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start), status, resultCode);
     }
 
     static long parseRetryAfterSeconds(String value) {
@@ -151,9 +182,7 @@ public class HttpWeatherProvider implements WeatherProvider {
         return URI.create(path + "?" + query);
     }
 
-    private Result parseResponse(Request request, boolean airQualityRequest, String responseBody) {
-        var root = jsonMapper.readTree(responseBody).path("response");
-        String code = root.path("header").path("resultCode").asString();
+    private Result parseResponse(Request request, boolean airQualityRequest, JsonNode root, String code) {
         if (!code.equals("00")) {
             throw new WeatherProviderException(Set.of("20", "21", "30", "31", "32").contains(code)
                     ? Reason.AUTHENTICATION : Reason.UNAVAILABLE,

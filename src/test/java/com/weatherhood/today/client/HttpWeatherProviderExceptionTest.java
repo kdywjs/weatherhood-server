@@ -12,8 +12,12 @@ import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import tools.jackson.databind.json.JsonMapper;
 
+@ExtendWith(OutputCaptureExtension.class)
 class HttpWeatherProviderExceptionTest {
     private static final WeatherProvider.Request REQUEST = new WeatherProvider.Request(
             WeatherSource.AIR, "테스트측정소", OffsetDateTime.parse("2026-11-15T12:00:00+09:00"));
@@ -36,12 +40,23 @@ class HttpWeatherProviderExceptionTest {
     }
 
     @Test
-    void unauthorizedResponseDoesNotExposeItsBodyOrKey() throws Exception {
+    void unauthorizedResponseDoesNotExposeItsBodyOrKey(CapturedOutput output) throws Exception {
         assertProviderFailure(401, "private-provider-body", Reason.AUTHENTICATION);
+        assertThat(output.getAll()).contains("httpStatus=401", "reason=AUTHENTICATION")
+                .doesNotContain("private-provider-body", "test-key", "serviceKey=");
     }
 
     @Test
-    void singleRequestTimeoutDoesNotBlockOtherRegions() throws Exception {
+    void noDataResponseRecordsProviderCode(CapturedOutput output) throws Exception {
+        assertProviderFailure(200, """
+                {"response":{"header":{"resultCode":"03","resultMsg":"private-provider-message"}}}
+                """, Reason.UNAVAILABLE);
+        assertThat(output.getAll()).contains("httpStatus=200 resultCode=03")
+                .doesNotContain("private-provider-message", "test-key");
+    }
+
+    @Test
+    void singleRequestTimeoutDoesNotBlockOtherRegions(CapturedOutput output) throws Exception {
         var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/", exchange -> {
             try {
@@ -63,6 +78,7 @@ class HttpWeatherProviderExceptionTest {
                         assertThat(exception.isProviderWide()).isFalse();
                         assertThat(exception.retryAfterSeconds()).isEqualTo(300);
                     });
+            assertThat(output.getAll()).contains("reason=TIMEOUT", "elapsedMs=", "httpStatus=0");
         } finally {
             server.stop(0);
         }
