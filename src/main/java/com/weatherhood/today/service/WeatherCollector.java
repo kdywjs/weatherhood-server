@@ -32,6 +32,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Stream;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -96,8 +97,25 @@ public class WeatherCollector {
      */
     public List<WeatherDatum> collectRequiredWeatherData(WeatherRegion region, LocalDate date, OffsetDateTime now,
                                                          List<WeatherDatum> existing) {
+        return collectRequests(requestPlanner.planRequests(region, date, now, existing), now);
+    }
+
+    /**
+     * 주간 목록에 필요한 최신 단기예보와 오늘 오전을 포함한 전날 마지막 발표를 수집한다.
+     * @param grid 기상청 격자
+     * @param now 한국 조회 시각
+     */
+    public void refreshWeeklyForecast(String grid, OffsetDateTime now) {
+        var latest = WeatherSchedule.resolveLatestReleaseTime(WeatherSource.SHORT, now);
+        var baseline = now.toLocalDate().atStartOfDay(KST).minusHours(1).toOffsetDateTime();
+        var releases = Stream.of(latest, baseline).distinct()
+                .map(release -> new Request(WeatherSource.SHORT, grid, release)).toList();
+        collectRequests(releases, now);
+    }
+
+    private List<WeatherDatum> collectRequests(List<Request> requests, OffsetDateTime now) {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-        Queue<Request> jobs = new ConcurrentLinkedQueue<>(requestPlanner.planRequests(region, date, now, existing));
+        Queue<Request> jobs = new ConcurrentLinkedQueue<>(requests);
         List<WeatherDatum> acquired = new CopyOnWriteArrayList<>();
         List<Future<?>> workers = new ArrayList<>();
         for (int i = 0; i < 4; i++) {
