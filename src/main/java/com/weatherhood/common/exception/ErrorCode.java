@@ -24,6 +24,8 @@ public enum ErrorCode {
      * 오늘 날씨 정보를 불러올 수 없습니다.
      */
     WEATHER_UNAVAILABLE("WEATHER_UNAVAILABLE", "오늘 날씨 정보를 불러올 수 없습니다."),
+    /** 주간 목록으로 제공할 유효한 예보가 없는 경우. */
+    WEEKLY_WEATHER_UNAVAILABLE("WEEKLY_WEATHER_UNAVAILABLE", "주간 예보를 불러올 수 없습니다."),
     /**
      * 지원하지 않는 요청 방식입니다.
      */

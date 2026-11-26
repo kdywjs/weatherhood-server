@@ -86,22 +86,43 @@ public class WeatherStore {
                         "from WeatherValue where location in :locations and target >= :start and target < :end",
                         WeatherValue.class)
                 .setParameter("locations", locations).setParameter("start", start).setParameter("end", end)
-                .getResultList().stream().map(value -> {
-                    WeatherField field = WeatherField.valueOf(value.field());
-                    Class<?> type = switch (field) {
-                        case SKY, PRECIPITATION_TYPE -> String.class;
-                        case PM10, PM25 -> PollutantReading.class;
-                        case SUNRISE, SUNSET -> SunEvent.class;
-                        case PRECIPITATION_AMOUNT ->
-                                jsonMapper.readTree(value.payload()).path("kind").asString().equals("exact")
-                                        ? ExactPrecipitation.class : PrecipitationRange.class;
-                        default -> Double.class;
-                    };
-                    return new WeatherDatum(WeatherSource.valueOf(value.source()), value.location(), field,
-                            value.target().withOffsetSameInstant(ZoneOffset.ofHours(9)),
-                            value.issued().withOffsetSameInstant(ZoneOffset.ofHours(9)),
-                            jsonMapper.readValue(value.payload(), type));
-                }).toList();
+                .getResultList().stream().map(this::toWeatherDatum).toList();
+    }
+
+    /**
+     * 주간 목록의 격자·기간·항목에 해당하는 저장 예보를 조회한다.
+     *
+     * @param grid 기상 격자
+     * @param start 한국 날짜 하한(포함)
+     * @param end 한국 날짜 상한(제외)
+     * @return 최신 발표로 갱신된 단기예보
+     */
+    @Transactional(readOnly = true)
+    public List<WeatherDatum> findWeeklyForecast(String grid, OffsetDateTime start, OffsetDateTime end) {
+        return entityManager.createQuery("""
+                        from WeatherValue where location = :grid and source = 'SHORT'
+                        and field in ('MIN', 'MAX', 'SKY', 'PRECIPITATION_TYPE')
+                        and target >= :start and target < :end
+                        """, WeatherValue.class)
+                .setParameter("grid", grid).setParameter("start", start).setParameter("end", end)
+                .getResultList().stream().map(this::toWeatherDatum).toList();
+    }
+
+    private WeatherDatum toWeatherDatum(WeatherValue value) {
+        WeatherField field = WeatherField.valueOf(value.field());
+        Class<?> type = switch (field) {
+            case SKY, PRECIPITATION_TYPE -> String.class;
+            case PM10, PM25 -> PollutantReading.class;
+            case SUNRISE, SUNSET -> SunEvent.class;
+            case PRECIPITATION_AMOUNT ->
+                    jsonMapper.readTree(value.payload()).path("kind").asString().equals("exact")
+                            ? ExactPrecipitation.class : PrecipitationRange.class;
+            default -> Double.class;
+        };
+        return new WeatherDatum(WeatherSource.valueOf(value.source()), value.location(), field,
+                value.target().withOffsetSameInstant(ZoneOffset.ofHours(9)),
+                value.issued().withOffsetSameInstant(ZoneOffset.ofHours(9)),
+                jsonMapper.readValue(value.payload(), type));
     }
 
     /**

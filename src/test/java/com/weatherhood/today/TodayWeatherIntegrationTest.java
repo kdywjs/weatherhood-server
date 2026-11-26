@@ -65,7 +65,8 @@ class TodayWeatherIntegrationTest {
     @AfterEach
     void removeTestRegions() {
         regions.deleteAllById(
-                List.of("http-partial", "http-historical", "unsupported", "unmapped", "http-sun", "http-sun-partial"));
+                List.of("http-partial", "http-historical", "unsupported", "unmapped", "http-sun", "http-sun-partial",
+                        "weekly-test"));
     }
 
     HttpResponse<String> get(String query) throws Exception {
@@ -73,6 +74,43 @@ class TodayWeatherIntegrationTest {
             return client.send(
                     HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/weather/today" + query))
                             .GET().build(), HttpResponse.BodyHandlers.ofString());
+        }
+    }
+
+    @Test
+    void weeklyForecastUsesOnlyAvailableDatesAndPreservesHalfDays() throws Exception {
+        regions.save(new WeatherRegion("weekly-test", "주간 테스트", true, 19, 31, null, null));
+        var target = now.plusDays(1).withHour(9).withMinute(0);
+        when(provider.fetchWeatherData(any())).thenAnswer(invocation -> {
+            WeatherProvider.Request request = invocation.getArgument(0);
+            return new WeatherProvider.Result(List.of(
+                    new WeatherDatum(request.source(), request.location(), WeatherField.MIN, target,
+                            request.release(), 0.0),
+                    new WeatherDatum(request.source(), request.location(), WeatherField.SKY, target,
+                            request.release(), "clear"),
+                    new WeatherDatum(request.source(), request.location(), WeatherField.PRECIPITATION_TYPE,
+                            target.plusHours(6), request.release(), "rain"),
+                    new WeatherDatum(request.source(), request.location(), WeatherField.SKY,
+                            target.plusDays(1).withHour(12), request.release(), "clear")), true);
+        });
+        try (var client = HttpClient.newHttpClient()) {
+            var uri = URI.create("http://localhost:" + port + "/api/v1/weather/weekly?regionId=weekly-test");
+            var response = client.send(HttpRequest.newBuilder(uri).GET().build(), HttpResponse.BodyHandlers.ofString());
+            assertThat(response.statusCode()).isEqualTo(200);
+            var days = json.readTree(response.body()).at("/data/daily");
+            assertThat(days.size()).isEqualTo(2);
+            var day = days.get(0);
+            assertThat(day.path("date").asString()).isEqualTo("2026-11-16");
+            assertThat(day.path("temperatureMinC").asDouble()).isZero();
+            assertThat(day.path("temperatureMaxC").isNull()).isTrue();
+            assertThat(day.at("/morning/sky").asString()).isEqualTo("clear");
+            assertThat(day.at("/morning/precipitationType").isNull()).isTrue();
+            assertThat(day.at("/afternoon/precipitationType").asString()).isEqualTo("rain");
+            var afternoonOnly = days.get(1);
+            assertThat(afternoonOnly.path("date").asString()).isEqualTo("2026-11-17");
+            assertThat(afternoonOnly.path("morning").isNull()).isTrue();
+            assertThat(afternoonOnly.at("/afternoon/forecastAt").asString()).isEqualTo("2026-11-17T12:00:00+09:00");
+            assertThat(afternoonOnly.at("/afternoon/sky").asString()).isEqualTo("clear");
         }
     }
 
